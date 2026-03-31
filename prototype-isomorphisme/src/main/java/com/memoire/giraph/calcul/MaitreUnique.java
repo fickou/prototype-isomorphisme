@@ -19,19 +19,7 @@ import java.util.*;
 
 /**
  * Master unique gérant les deux phases du job en un seul job Giraph.
- *
- * <h3>Séquence des supersteps</h3>
- * <pre>
- *  Superstep 0  : [Master] initialise → [Workers] CalculFiltre (envoi pings)
- *  Superstep 1  : [Master] attend → [Workers] CalculFiltre (collecte degrés)
- *  Superstep 2  : [Master] construit M[], choisit racine, distribue candidats
- *                          → [Workers] CalculCorrespondance (init exploration)
- *  Superstep k≥3: [Master] surveille convergence
- *                          → [Workers] CalculCorrespondance (étend mappings)
- *  Convergence  : [Master] lit AggregateurResultats → écrit fichier HDFS → halt
- * </pre>
- *
- * <h3>Choix de la racine</h3>
+ * Choix de la racine
  * Le sommet du motif ayant le plus petit nombre de candidats dans le graphe
  * de données est choisi comme racine (heuristique de réduction de l'espace
  * de recherche, conforme à l'esprit de l'algorithme d'Ullmann).
@@ -54,19 +42,19 @@ public class MaitreUnique extends DefaultMasterCompute {
         // ── Enregistrement des agrégateurs ─────────────────────────────────────
         // Régulier : réinitialisé à chaque superstep
         registerAggregator(AggregateurDegresSommets.NOM,
-                           AggregateurDegresSommets.class);
+                AggregateurDegresSommets.class);
 
         // Régulier : réinitialisé à chaque superstep (on le réécrit depuis le Master)
         registerAggregator(AggregateurCandidats.NOM,
-                           AggregateurCandidats.class);
-        
+                AggregateurCandidats.class);
+
         // Persistants : conservent leur valeur d'un superstep à l'autre
         registerPersistentAggregator(AggregateurResultats.NOM,
-                                     AggregateurResultats.class);
+                AggregateurResultats.class);
 
         // Régulier : compteur d'activité pour détecter proprement la fin
         registerAggregator(AggregateurActivite.NOM,
-                           AggregateurActivite.class);
+                AggregateurActivite.class);
 
         // ── Phase 1 : démarrer avec CalculFiltre ───────────────────────────────
         setComputation(CalculFiltre.class);
@@ -141,24 +129,27 @@ public class MaitreUnique extends DefaultMasterCompute {
 
             if (cands.isEmpty()) {
                 LOG.warn("Aucun candidat pour le sommet motif " + u
-                       + " → aucun isomorphisme possible.");
+                        + " → aucun isomorphisme possible.");
                 haltComputation();
                 return;
             }
         }
 
-        // ── Choisir la racine : sommet source du motif ou celui avec le moins de candidats ─
+        // ── Choisir la racine : sommet source du motif ou celui avec le moins de
+        // candidats ─
         long idRacine = choisirRacine(candidats, motif);
         LOG.info("Racine choisie : " + idRacine
-               + " (" + candidats.get(idRacine).size() + " candidats)");
+                + " (" + candidats.get(idRacine).size() + " candidats)");
 
         // ── Calculer l'ordre d'exploration depuis la racine ───────────────
         List<Long> ordreExploration = motif.calculerOrdreDFS(idRacine);
         LOG.info("Ordre d'exploration DFS : " + ordreExploration);
 
         if (!motif.ordreEstLineairementExplorable(ordreExploration)) {
-            LOG.error("Le motif n'est pas compatible avec le prototype courant : l'ordre d'exploration contient au moins une transition entre deux sommets non adjacents. " +
-                    "Ce prototype ne couvre que les motifs explorables linéairement.");
+            LOG.error(
+                    "Le motif n'est pas compatible avec le prototype courant : l'ordre d'exploration contient au moins une transition entre deux sommets non adjacents. "
+                            +
+                            "Ce prototype ne couvre que les motifs explorables linéairement.");
             haltComputation();
             return;
         }
@@ -166,7 +157,7 @@ public class MaitreUnique extends DefaultMasterCompute {
         // ── Distribuer aux workers via l'agrégateur persistant ────────────
         candidatsEncoded = AggregateurCandidats.encoder(idRacine, ordreExploration, candidats);
         setAggregatedValue(AggregateurCandidats.NOM, candidatsEncoded);
-        LOG.info("Candidats envoyés à l'agrégateur. Racine=" + idRacine);
+        LOG.info("Candidats envoyés à l'agrégateur. Racine = " + idRacine);
     }
 
     /**
@@ -190,7 +181,8 @@ public class MaitreUnique extends DefaultMasterCompute {
             }
         }
 
-        // 2) Fallback : si aucun sommet source, prendre celui avec le moins de candidats
+        // 2) Fallback : si aucun sommet source, prendre celui avec le moins de
+        // candidats
         if (meilleureRacine == -1L) {
             for (Map.Entry<Long, List<Long>> e : candidats.entrySet()) {
                 if (e.getValue().size() < minCandidats) {
@@ -218,9 +210,10 @@ public class MaitreUnique extends DefaultMasterCompute {
         long activite = activiteAgg == null ? 0L : activiteAgg.get();
 
         LOG.info("Superstep " + superstep + " : "
-               + liste.size() + " isomorphisme(s) trouvé(s) jusqu'ici, activité=" + activite + ".");
+                + liste.size() + " isomorphisme(s) trouvé(s) jusqu'ici, activité = " + activite + ".");
 
-        // À partir de S4, si aucune activité n'a été produite à la superstep précédente,
+        // À partir de S4, si aucune activité n'a été produite à la superstep
+        // précédente,
         // alors plus aucun nouveau mapping ne circule : on peut finaliser proprement.
         if (superstep >= 4 && activite == 0L) {
             LOG.info("Aucune nouvelle activité détectée : écriture des résultats et arrêt propre.");
@@ -265,14 +258,15 @@ public class MaitreUnique extends DefaultMasterCompute {
                     out.writeBytes("ISO_" + (i + 1) + " : ");
                     StringBuilder sb = new StringBuilder();
                     for (Map.Entry<Long, Long> e : liste.get(i).entrySet()) {
-                        if (sb.length() > 0) sb.append(", ");
-                        sb.append(e.getKey()).append("→").append(e.getValue());
+                        if (sb.length() > 0)
+                            sb.append(", ");
+                        sb.append(e.getKey()).append(" -> ").append(e.getValue());
                     }
                     out.writeBytes(sb.toString() + "\n");
                 }
             }
             LOG.info("Résultats écrits dans : " + cheminSortie
-                   + " (" + liste.size() + " isomorphisme(s))");
+                    + " (" + liste.size() + " isomorphisme(s))");
         } catch (IOException e) {
             LOG.error("Erreur lors de l'écriture des résultats : " + e.getMessage());
         }
@@ -302,12 +296,13 @@ public class MaitreUnique extends DefaultMasterCompute {
         }
         for (String entree : degresText.toString().split("\\|")) {
             entree = entree.trim();
-            if (entree.isEmpty()) continue;
+            if (entree.isEmpty())
+                continue;
             String[] parts = entree.split(":");
             if (parts.length == 3) {
-                long id        = Long.parseLong(parts[0]);
-                int degreEntrant  = Integer.parseInt(parts[1]);
-                int degreSortant  = Integer.parseInt(parts[2]);
+                long id = Long.parseLong(parts[0]);
+                int degreEntrant = Integer.parseInt(parts[1]);
+                int degreSortant = Integer.parseInt(parts[2]);
                 resultat.put(id, new PaireDegres(degreEntrant, degreSortant));
             }
         }

@@ -7,7 +7,6 @@ import org.apache.giraph.graph.BasicComputation;
 import org.apache.giraph.graph.Vertex;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.NullWritable;
-import org.apache.hadoop.io.Text;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
@@ -15,22 +14,20 @@ import java.io.IOException;
 /**
  * Phase 1 — Filtrage : calcul des degrés des sommets du graphe de données.
  *
- * <p>Cette computation est exécutée pendant les supersteps 0 et 1.
+ * Cette computation est exécutée pendant les supersteps 0 et 1.
  *
- * <h3>Superstep 0</h3>
+ * Superstep 0
  * Chaque sommet v envoie un message {@link Message#PING_DEGRE} à tous ses
  * voisins sortants. Ce signal permettra à chaque voisin de compter son
  * degré entrant.
  *
- * <h3>Superstep 1</h3>
+ * Superstep 1
  * Chaque sommet v :
- * <ol>
- *   <li>Compte les messages reçus = son degré entrant.</li>
- *   <li>Mémorise l'identifiant des émetteurs = ses voisins entrants.</li>
- *   <li>Agrège sa paire de degrés (degreEntrant, degreSortant) dans
- *       {@link AggregateurDegresSommets}.</li>
- *   <li>Vote pour l'arrêt (la superstep suivante appartient au master).</li>
- * </ol>
+ *   Compte les messages reçus = son degré entrant.
+ *   Mémorise l'identifiant des émetteurs = ses voisins entrants.
+ *   Agrège sa paire de degrés (degreEntrant, degreSortant) dans
+ *       {@link AggregateurDegresSommets}.
+ *   Vote pour l'arrêt (la superstep suivante appartient au master).
  */
 public class CalculFiltre
         extends BasicComputation<LongWritable, ValeurSommet, NullWritable, Message> {
@@ -76,12 +73,10 @@ public class CalculFiltre
             );
 
             LOG.debug("Sommet " + sommet.getId().get()
-                + " : degreEntrant=" + degreEntrant
-                + ", degreSortant=" + degreSortant);
+                + " : degreEntrant = " + degreEntrant
+                + ", degreSortant = " + degreSortant);
 
         } else {
-            // ── Superstep ≥ 2 : transition vers CalculCorrespondance ───────
-            // On s'arrête ici pour laisser le Master changer la Computation class
             sommet.voteToHalt();
         }
     }

@@ -20,31 +20,24 @@ import java.util.*;
 /**
  * Phase 2 — Correspondance distribuée (adaptation d'Ullmann au modèle BSP).
  *
- * <p>Cette computation est exécutée à partir de la superstep 2.
+ * Cette computation est exécutée à partir de la superstep 2.
  *
- * <h3>Superstep 2 (initialisation)</h3>
+ * Superstep 2 (initialisation)
  * Chaque sommet v du graphe de données lit l'agrégateur
  * {@link AggregateurCandidats} pour obtenir M[] et l'ordre DFS.
  * Les candidats de la racine {@code u_0} lancent l'exploration en
  * envoyant un message EXPLORATION à leurs voisins (entrants et sortants).
  *
- * <h3>Superstep k > 2 (extension du mapping)</h3>
+ * Superstep k > 2 (extension du mapping)
  * Chaque sommet v reçoit des messages EXPLORATION portant des mappings
  * partiels de profondeur {@code k−2}. Il tente de s'ajouter au mapping
  * en tant que candidat pour le prochain sommet du motif {@code u_{profondeur}}.
  * La vérification comprend :
- * <ul>
- *   <li>Injectivité (v pas déjà utilisé dans le mapping)</li>
- *   <li>Appartenance à {@code M[u_{profondeur}]}</li>
- *   <li>Cohérence structurelle de tous les arcs impliquant u_{profondeur}</li>
- * </ul>
+ *   Injectivité (v pas déjà utilisé dans le mapping)
+ *   Appartenance à {@code M[u_{profondeur}]}
+ *   Cohérence structurelle de tous les arcs impliquant u_{profondeur}
  * Si le mapping est complet, il est agrégé dans {@link AggregateurResultats}.
  * Sinon, le mapping étendu est propagé aux voisins de v.
- *
- * - [x] Modifier `CalculFiltre.java` : maintenir les workers actifs après S1.
- * - [x] Modifier `MaitreUnique.java` : décaler le lancement de `CalculCorrespondance` à S3 et ajuster la surveillance.
- * - [x] Modifier `CalculCorrespondance.java` : adapter l'init à S3 et ajouter des logs détaillés.
- * - [x] Demander à l'utilisateur de compiler et tester.
  */
 public class CalculCorrespondance
         extends BasicComputation<LongWritable, ValeurSommet, NullWritable, Message> {
@@ -64,7 +57,7 @@ public class CalculCorrespondance
         contenuCandidats = AggregateurCandidats.decoder(valeur);
 
         if (getSuperstep() >= 2) {
-            LOG.info("Superstep " + getSuperstep() + " raw aggregator value: [" + valeur.toString() + "]");
+            LOG.info("Superstep " + getSuperstep() + " raw aggregator value: [ " + valeur.toString() + " ]");
         }
 
         if (getSuperstep() >= 3 && !contenuCandidats.estValide()) {
@@ -90,8 +83,6 @@ public class CalculCorrespondance
 
         // ── Superstep 2 : Latence nécessaire pour la propagation des agrégateurs ──
         if (superstep == 2) {
-            // On ne fait rien pour laisser l'agrégateur M[] arriver aux Workers à S3.
-            // On ne vote PAS l'arrêt pour forcer le passage à S3.
             return;
         }
 

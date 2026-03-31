@@ -3,17 +3,7 @@ package com.memoire.giraph.agregateur;
 import org.apache.giraph.aggregators.BasicAggregator;
 import org.apache.hadoop.io.Text;
 
-/**
- * Agrégateur des paires de degrés de tous les sommets du graphe de données.
- *
- * <p>Utilisé à la fin de la superstep 1 (phase filtre) pour que le master
- * puisse construire les ensembles de candidats M[u] pour chaque sommet u
- * du motif.
- *
- * <p>Format encodé : {@code "id0:indeg0:outdeg0|id1:indeg1:outdeg1|..."}
- * L'opération d'agrégation est une concaténation avec le séparateur {@code "|"},
- * ce qui est commutative et associative.
- */
+
 public class AggregateurDegresSommets extends BasicAggregator<Text> {
 
     public static final String NOM = "agregateur.degres.sommets";

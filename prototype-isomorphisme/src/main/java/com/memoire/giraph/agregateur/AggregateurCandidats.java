@@ -3,32 +3,13 @@ package com.memoire.giraph.agregateur;
 import org.apache.giraph.aggregators.BasicAggregator;
 import org.apache.hadoop.io.Text;
 
-/**
- * Agrégateur persistant contenant les ensembles de candidats M[u] pour
- * chaque sommet u du motif, ainsi que l'ordre d'exploration DFS et
- * l'identifiant de la racine choisie.
- *
- * <p>Cet agrégateur est écrit par le master à la superstep 2 via
- * {@code setAggregatedValue()} et lu par les workers dans
- * {@code CalculCorrespondance} via {@code getAggregatedValue()}.
- *
- * <p>Format encodé :
- * <pre>
- *   RACINE:id_racine
- *   ORDRE:u0,u1,u2,...
- *   CAND:u0->v1,v2;u1->v3,v4;...
- * </pre>
- * Les trois parties sont séparées par {@code "\n"}.
- */
+
 public class AggregateurCandidats extends BasicAggregator<Text> {
 
     public static final String NOM = "agregateur.candidats";
 
     @Override
     public void aggregate(Text valeur) {
-        // L'agrégateur est uniquement écrit par le master (setAggregatedValue).
-        // Les workers ne l'alimentent pas directement.
-        // On conserve simplement la dernière valeur reçue.
         getAggregatedValue().set(valeur.toString());
     }
 
@@ -36,8 +17,6 @@ public class AggregateurCandidats extends BasicAggregator<Text> {
     public Text createInitialValue() {
         return new Text("");
     }
-
-    // ── Méthodes utilitaires d'encodage / décodage ───────────────────────────
 
     /**
      * Encode les candidats et l'ordre dans la chaîne de cet agrégateur.
