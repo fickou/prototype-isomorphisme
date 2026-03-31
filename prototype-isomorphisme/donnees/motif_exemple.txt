@@ -1,0 +1,7 @@
+# Motif : un chemin de longueur 2 (A -> B -> C)
+# Sommet A pointant vers B
+10 11
+# Sommet B pointant vers C
+11 12
+# Sommet C sans voisin sortant
+12

@@ -1,0 +1,14 @@
+com\memoire\giraph\types\Message.class
+com\memoire\giraph\types\ValeurSommet.class
+com\memoire\giraph\agregateur\AggregateurCandidats.class
+com\memoire\giraph\agregateur\AggregateurResultats.class
+com\memoire\giraph\calcul\MaitreUnique.class
+com\memoire\giraph\agregateur\AggregateurCandidats$ContenuCandidats.class
+com\memoire\giraph\types\PaireDegres.class
+com\memoire\giraph\agregateur\AggregateurDegresSommets.class
+com\memoire\giraph\calcul\CalculFiltre.class
+com\memoire\giraph\calcul\CalculCorrespondance.class
+com\memoire\giraph\es\FormatEntreeListeAdj$LecteurSommetListeAdj.class
+com\memoire\giraph\es\FormatEntreeListeAdj.class
+com\memoire\giraph\LanceurJob.class
+com\memoire\giraph\types\Motif.class
