@@ -18,11 +18,11 @@ import java.io.IOException;
 import java.util.*;
 
 /**
- * Master unique gérant les deux phases du job en un seul job Giraph.
- * Choix de la racine
- * Le sommet du motif ayant le plus petit nombre de candidats dans le graphe
- * de données est choisi comme racine (heuristique de réduction de l'espace
- * de recherche, conforme à l'esprit de l'algorithme d'Ullmann).
+ Master unique gérant les deux phases du job en un seul job Giraph.
+ Choix de la racine
+ Le sommet du motif ayant le plus petit nombre de candidats dans le graphe
+ de données est choisi comme racine (heuristique de réduction de l'espace
+ de recherche, Ullmann).
  */
 public class MaitreUnique extends DefaultMasterCompute {
 
@@ -39,7 +39,7 @@ public class MaitreUnique extends DefaultMasterCompute {
 
     @Override
     public void initialize() throws InstantiationException, IllegalAccessException {
-        // ── Enregistrement des agrégateurs ─────────────────────────────────────
+        // Enregistrement des agrégateurs
         // Régulier : réinitialisé à chaque superstep
         registerAggregator(AggregateurDegresSommets.NOM,
                 AggregateurDegresSommets.class);
@@ -56,9 +56,8 @@ public class MaitreUnique extends DefaultMasterCompute {
         registerAggregator(AggregateurActivite.NOM,
                 AggregateurActivite.class);
 
-        // ── Phase 1 : démarrer avec CalculFiltre ───────────────────────────────
+        // Phase 1 : démarrer avec CalculFiltre
         setComputation(CalculFiltre.class);
-        LOG.info("MaitreUnique initialisé. Phase 1 (Filtrage) démarrée.");
     }
 
     @Override
@@ -67,42 +66,34 @@ public class MaitreUnique extends DefaultMasterCompute {
         LOG.info("MaitreUnique.compute() superstep=" + superstep);
 
         if (superstep == 0) {
-            // Rien à faire : CalculFiltre envoie les pings
+            // CalculFiltre envoie les pings
             setComputation(CalculFiltre.class);
 
         } else if (superstep == 1) {
-            // Rien à faire : CalculFiltre collecte les degrés et agrège
+            // CalculFiltre collecte les degrés et agrège
             setComputation(CalculFiltre.class);
 
         } else if (superstep == 2) {
-            // ── Préparation et Transition ──────────────────────────────────
-            LOG.info("MaitreUnique.compute() superstep 2 : Calcul des candidats et transition.");
             construireEtDistribuerCandidats();
 
             setComputation(CalculCorrespondance.class);
 
         } else {
-            // ── Surveillance de la convergence (superstep ≥ 3) ─────────────
+            // Surveillance de la convergence (superstep ≥ 3)
             if (candidatsEncoded != null) {
                 setAggregatedValue(AggregateurCandidats.NOM, candidatsEncoded);
             }
             surveillerConvergence(superstep);
         }
     }
-    // ── Phase de transition : construction de M[] ─────────────────────────────
+    // Phase de transition : construction des candidats M[]
 
-    /**
-     * Construit les ensembles de candidats M[u] pour chaque sommet u du motif,
-     * choisit la racine, et distribue le tout via {@link AggregateurCandidats}.
-     */
     private void construireEtDistribuerCandidats() {
-        // ── Lire les degrés agrégés par les workers en superstep 1 ─────────
+        // Lire les degrés agrégés par les workers en superstep 1
         Text degresText = getAggregatedValue(AggregateurDegresSommets.NOM);
         Map<Long, PaireDegres> degresGraphe = parserDegresSommets(degresText);
 
-        LOG.info("Degrés reçus pour " + degresGraphe.size() + " sommets.");
-
-        // ── Charger le motif depuis HDFS ───────────────────────────────────
+        // Charger le motif depuis HDFS
         Motif motif;
         try {
             motif = Motif.charger(getConf());
@@ -114,7 +105,7 @@ public class MaitreUnique extends DefaultMasterCompute {
 
         LOG.info("Motif chargé :\n" + motif);
 
-        // ── Filtrage : construire M[u] pour chaque u du motif ─────────────
+        // Filtrage : construction des candidats M[u] pour chaque u du motif
         Map<Long, List<Long>> candidats = new LinkedHashMap<>();
         for (long u : motif.getSommets()) {
             PaireDegres degresMotif = motif.getDegres(u);
@@ -128,44 +119,32 @@ public class MaitreUnique extends DefaultMasterCompute {
             LOG.info("M[" + u + "] = " + cands);
 
             if (cands.isEmpty()) {
-                LOG.warn("Aucun candidat pour le sommet motif " + u
-                        + " → aucun isomorphisme possible.");
                 haltComputation();
                 return;
             }
         }
 
-        // ── Choisir la racine : sommet source du motif ou celui avec le moins de
-        // candidats ─
+        // Choisir la racine
         long idRacine = choisirRacine(candidats, motif);
         LOG.info("Racine choisie : " + idRacine
                 + " (" + candidats.get(idRacine).size() + " candidats)");
 
-        // ── Calculer l'ordre d'exploration depuis la racine ───────────────
+        // Calculer l'ordre d'exploration depuis la racine
         List<Long> ordreExploration = motif.calculerOrdreDFS(idRacine);
         LOG.info("Ordre d'exploration DFS : " + ordreExploration);
 
         if (!motif.ordreEstLineairementExplorable(ordreExploration)) {
-            LOG.error(
-                    "Le motif n'est pas compatible avec le prototype courant : l'ordre d'exploration contient au moins une transition entre deux sommets non adjacents. "
-                            +
-                            "Ce prototype ne couvre que les motifs explorables linéairement.");
             haltComputation();
             return;
         }
 
-        // ── Distribuer aux workers via l'agrégateur persistant ────────────
+        // Distribuer aux workers via l'agrégateur persistant 
         candidatsEncoded = AggregateurCandidats.encoder(idRacine, ordreExploration, candidats);
         setAggregatedValue(AggregateurCandidats.NOM, candidatsEncoded);
         LOG.info("Candidats envoyés à l'agrégateur. Racine = " + idRacine);
     }
 
-    /**
-     * Choisit comme racine le sommet du motif n'ayant pas de voisin entrant
-     * (sommet source). S'il y en a plusieurs, on prend celui avec le moins
-     * de candidats. Si aucun sommet source n'existe, on prend le sommet
-     * ayant le moins de candidats.
-     */
+    // Choix de la racine
     private long choisirRacine(Map<Long, List<Long>> candidats, Motif motif) {
         long meilleureRacine = -1L;
         int minCandidats = Integer.MAX_VALUE;
@@ -181,8 +160,7 @@ public class MaitreUnique extends DefaultMasterCompute {
             }
         }
 
-        // 2) Fallback : si aucun sommet source, prendre celui avec le moins de
-        // candidats
+        // 2) Fallback : si aucun sommet source, prendre celui avec le moins de candidats
         if (meilleureRacine == -1L) {
             for (Map.Entry<Long, List<Long>> e : candidats.entrySet()) {
                 if (e.getValue().size() < minCandidats) {
@@ -195,26 +173,13 @@ public class MaitreUnique extends DefaultMasterCompute {
         return meilleureRacine;
     }
 
-    // ── Surveillance de la convergence ────────────────────────────────────────
+    // Surveillance de la convergence 
 
-    /**
-     * Détecte la fin de la phase de correspondance.
-     * La convergence est naturelle dans Giraph (tous les sommets votent pour
-     * l'arrêt et aucun message n'est en transit). Le master peut néanmoins
-     * forcer l'arrêt après un nombre maximal de supersteps.
-     */
     private void surveillerConvergence(long superstep) {
         Text resultats = getAggregatedValue(AggregateurResultats.NOM);
-        List<Map<Long, Long>> liste = AggregateurResultats.decoder(resultats);
         LongWritable activiteAgg = getAggregatedValue(AggregateurActivite.NOM);
         long activite = activiteAgg == null ? 0L : activiteAgg.get();
 
-        LOG.info("Superstep " + superstep + " : "
-                + liste.size() + " isomorphisme(s) trouvé(s) jusqu'ici, activité = " + activite + ".");
-
-        // À partir de S4, si aucune activité n'a été produite à la superstep
-        // précédente,
-        // alors plus aucun nouveau mapping ne circule : on peut finaliser proprement.
         if (superstep >= 4 && activite == 0L) {
             LOG.info("Aucune nouvelle activité détectée : écriture des résultats et arrêt propre.");
             if (!resultatsEcrits) {
@@ -236,11 +201,8 @@ public class MaitreUnique extends DefaultMasterCompute {
         }
     }
 
-    // ── Écriture des résultats ────────────────────────────────────────────────
+    // Écriture des résultats 
 
-    /**
-     * Écrit tous les isomorphismes trouvés dans un fichier HDFS unique.
-     */
     private void ecrireResultats(Text resultats) {
         String cheminSortie = getConf().get("resultats.chemin", "/resultats-isomorphismes.txt");
         List<Map<Long, Long>> liste = AggregateurResultats.decoder(resultats);
@@ -265,17 +227,11 @@ public class MaitreUnique extends DefaultMasterCompute {
                     out.writeBytes(sb.toString() + "\n");
                 }
             }
-            LOG.info("Résultats écrits dans : " + cheminSortie
-                    + " (" + liste.size() + " isomorphisme(s))");
         } catch (IOException e) {
             LOG.error("Erreur lors de l'écriture des résultats : " + e.getMessage());
         }
     }
 
-    /**
-     * Méthode publique appelable par le lanceur ou les tests pour déclencher
-     * manuellement l'écriture des résultats finaux.
-     */
     public void finaliserEtEcrire() {
         Text resultats = getAggregatedValue(AggregateurResultats.NOM);
         if (resultats != null) {
@@ -283,12 +239,8 @@ public class MaitreUnique extends DefaultMasterCompute {
         }
     }
 
-    // ── Parsing des degrés ────────────────────────────────────────────────────
+    // Parsing des degrés 
 
-    /**
-     * Parse la chaîne agrégée {@code "id:indeg:outdeg|id:indeg:outdeg|..."}
-     * en une map {@code idSommet → PaireDegres}.
-     */
     private static Map<Long, PaireDegres> parserDegresSommets(Text degresText) {
         Map<Long, PaireDegres> resultat = new LinkedHashMap<>();
         if (degresText == null || degresText.toString().isEmpty()) {

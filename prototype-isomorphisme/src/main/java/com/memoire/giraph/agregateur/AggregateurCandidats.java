@@ -32,10 +32,10 @@ public class AggregateurCandidats extends BasicAggregator<Text> {
 
         StringBuilder sb = new StringBuilder();
 
-        // ── Racine
+        // Racine
         sb.append("RACINE:").append(idRacine).append("\n");
 
-        // ── Ordre DFS
+        // Ordre DFS
         sb.append("ORDRE:");
         for (int i = 0; i < ordre.size(); i++) {
             if (i > 0) sb.append(",");
@@ -43,7 +43,7 @@ public class AggregateurCandidats extends BasicAggregator<Text> {
         }
         sb.append("\n");
 
-        // ── Candidats par sommet du motif
+        // Candidats par sommet du motif
         sb.append("CAND:");
         boolean premierSommet = true;
         for (long u : ordre) {
@@ -62,9 +62,7 @@ public class AggregateurCandidats extends BasicAggregator<Text> {
         return new Text(sb.toString());
     }
 
-    /**
-     * Décode la chaîne d'un agrégateur en un objet {@link ContenuCandidats}.
-     */
+    // Décode la chaîne d'un agrégateur en un objet {@link ContenuCandidats}.
     public static ContenuCandidats decoder(Text valeur) {
         ContenuCandidats resultat = new ContenuCandidats();
         String[] lignes = valeur.toString().split("\n");
@@ -103,7 +101,7 @@ public class AggregateurCandidats extends BasicAggregator<Text> {
         return resultat;
     }
 
-    /** Conteneur DTO pour les données décodées de cet agrégateur. */
+    // Conteneur DTO pour les données décodées de cet agrégateur.
     public static class ContenuCandidats {
         public long racine = -1L;
         public java.util.List<Long> ordre

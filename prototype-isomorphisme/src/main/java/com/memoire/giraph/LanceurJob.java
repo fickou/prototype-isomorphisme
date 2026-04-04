@@ -14,17 +14,7 @@ import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.log4j.Logger;
 
-/**
- * Point d'entrée principal pour lancer le job Giraph d'isomorphisme de sous-graphe.
- *
- * <p>Arguments de ligne de commande :
- * <ul>
- *   <li>{@code arg[0]} : chemin HDFS du graphe de données (VertexInputFormat)</li>
- *   <li>{@code arg[1]} : chemin HDFS du motif (paramètre de config)</li>
- *   <li>{@code arg[2]} : chemin HDFS du fichier de résultats (écrit par le master)</li>
- *   <li>{@code arg[3]} : nombre de workers (optionnel, défaut 1)</li>
- * </ul>
- */
+// Point d'entrée principal pour lancer le job Giraph d'isomorphisme de sous-graphe.
 public class LanceurJob extends Configured implements Tool {
 
     private static final Logger LOG = Logger.getLogger(LanceurJob.class);
@@ -68,11 +58,11 @@ public class LanceurJob extends Configured implements Tool {
 
         GiraphConfiguration conf = new GiraphConfiguration(getConf());
 
-        // Correction : Permettre des retries pour éviter les échecs temporaires
+        // Permettre des retries pour éviter les échecs temporaires
         conf.setInt("mapred.map.max.attempts", 3);
         conf.setInt("mapred.reduce.max.attempts", 3);
 
-        // Correction : Augmenter la mémoire par tâche pour éviter les erreurs de ressources
+        // Augmenter la mémoire par tâche pour éviter les erreurs de ressources
         conf.set("mapred.child.java.opts", "-Xmx1024m");
 
         conf.setWorkerConfiguration(nbWorkers, nbWorkers, 100.0f);
@@ -81,9 +71,6 @@ public class LanceurJob extends Configured implements Tool {
         conf.setComputationClass(CalculFiltre.class);
         conf.setMasterComputeClass(MaitreUnique.class);
         conf.setVertexInputFormatClass(FormatEntreeListeAdj.class);
-
-        // Note : les types (I=LongWritable, V=ValeurSommet, E=NullWritable, M=Message)
-        // sont inférés automatiquement depuis les paramètres génériques de CalculFiltre.
 
         // Paramètres personnalisés pour l'application
         conf.set(Motif.CLE_CHEMIN_MOTIF, chemMotif);
@@ -98,7 +85,6 @@ public class LanceurJob extends Configured implements Tool {
         LOG.info("- Sortie  : " + chemResultats);
         LOG.info("- Workers : " + nbWorkers);
 
-        // Correction : Ajouter gestion d'erreurs et logs détaillés pour déboguer
         try {
             boolean res = job.run(true);
             LOG.info("Le job Giraph " + (res ? "a réussi" : "a échoué") + ".");

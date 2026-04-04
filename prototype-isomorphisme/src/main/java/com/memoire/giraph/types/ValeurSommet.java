@@ -7,28 +7,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Valeur associée à chaque sommet du graphe de données dans Giraph.
- *
- * <p>Contient :
- * <ul>
- *   <li>Le degré entrant (calculé à la superstep 1 de la phase filtre)</li>
- *   <li>La liste des voisins entrants (nécessaire pour la vérification
- *       structurelle des arcs dans la phase de correspondance)</li>
- * </ul>
- *
- * <p>Note : les voisins sortants sont directement accessibles via
- * {@code vertex.getEdges()} dans Giraph et ne sont pas dupliqués ici.
- */
+// Valeur associée à chaque sommet du graphe de données dans Giraph.
 public class ValeurSommet implements Writable {
 
-    /** Degré entrant du sommet (nombre d'arcs entrants). */
     private int degreEntrant;
 
-    /**
-     * Identifiants des voisins entrants (sommets qui ont un arc vers ce sommet).
-     * Collectés durant la superstep 1 de la phase filtre.
-     */
     private List<Long> voisinsEntrants;
 
     public ValeurSommet() {
@@ -36,21 +19,18 @@ public class ValeurSommet implements Writable {
         this.voisinsEntrants = new ArrayList<>();
     }
 
-    // ── Accesseurs ───────────────────────────────────────────────────────────
-
+    // Accesseurs
     public int getDegreEntrant()               { return degreEntrant; }
     public void setDegreEntrant(int d)         { this.degreEntrant = d; }
     public List<Long> getVoisinsEntrants()     { return voisinsEntrants; }
 
-    /** Ajoute un voisin entrant lors de la collecte en superstep 1. */
     public void ajouterVoisinEntrant(long id) {
         if (!voisinsEntrants.contains(id)) {
             voisinsEntrants.add(id);
         }
     }
 
-    // ── Sérialisation Writable ────────────────────────────────────────────────
-
+    // Sérialisation Writable
     @Override
     public void write(DataOutput out) throws IOException {
         out.writeInt(degreEntrant);

@@ -46,11 +46,6 @@ public class AggregateurResultats extends BasicAggregator<Text> {
         return new Text(sb.toString());
     }
 
-    /**
-     * Decode et retourne la liste de tous les isomorphismes uniques.
-     * Applique une déduplication basée sur la représentation canonique
-     * (tri des entrées par id de sommet motif).
-     */
     public static java.util.List<java.util.Map<Long, Long>> decoder(Text valeur) {
         java.util.Set<String> vus = new java.util.LinkedHashSet<>();
         java.util.List<java.util.Map<Long, Long>> resultats = new java.util.ArrayList<>();

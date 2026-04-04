@@ -5,11 +5,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-/**
- * Paire de degrés (degré entrant, degré sortant) d'un sommet.
- * Utilisée dans la phase de filtrage pour éliminer les candidats
- * incompatibles avec les contraintes de degré du motif.
- */
+// Paire de degrés (degré entrant, degré sortant) d'un sommet.
 public class PaireDegres implements Writable {
 
     private int degreEntrant;
@@ -30,11 +26,9 @@ public class PaireDegres implements Writable {
     public void setDegreEntrant(int d) { this.degreEntrant = d; }
     public void setDegreSortant(int d) { this.degreSortant = d; }
 
-    /**
-     * Vérifie si ce sommet du graphe de données peut être candidat
-     * pour un sommet du motif ayant les degrés donnés.
-     * Condition : degrés de données >= degrés du motif.
-     */
+    // Vérifie si ce sommet du graphe de données peut être candidat
+    // pour un sommet du motif ayant les degrés donnés.
+    // Condition : degrés de données >= degrés du motif.
     public boolean estCandidatPour(PaireDegres degresMotif) {
         return this.degreEntrant  >= degresMotif.degreEntrant
             && this.degreSortant >= degresMotif.degreSortant;
@@ -54,17 +48,17 @@ public class PaireDegres implements Writable {
 
     @Override
     public String toString() {
-        return "(" + degreEntrant + "," + degreSortant + ")";
+        return "(" + degreEntrant + " : " + degreSortant + ")";
     }
 
-    /** Encodage compact pour les agrégateurs texte : "indeg:outdeg" */
+    // Encodage compact pour les agrégateurs texte : "indeg:outdeg"
     public String encoder() {
-        return degreEntrant + ":" + degreSortant;
+        return degreEntrant + " : " + degreSortant;
     }
 
-    /** Décodage depuis "indeg:outdeg" */
+    // Décodage depuis "indeg:outdeg"
     public static PaireDegres decoder(String s) {
-        String[] parts = s.split(":");
+        String[] parts = s.split(" : ");
         return new PaireDegres(Integer.parseInt(parts[0]),
                                Integer.parseInt(parts[1]));
     }

@@ -17,28 +17,8 @@ import org.apache.log4j.Logger;
 import java.io.IOException;
 import java.util.*;
 
-/**
- * Phase 2 — Correspondance distribuée (adaptation d'Ullmann au modèle BSP).
- *
- * Cette computation est exécutée à partir de la superstep 2.
- *
- * Superstep 2 (initialisation)
- * Chaque sommet v du graphe de données lit l'agrégateur
- * {@link AggregateurCandidats} pour obtenir M[] et l'ordre DFS.
- * Les candidats de la racine {@code u_0} lancent l'exploration en
- * envoyant un message EXPLORATION à leurs voisins (entrants et sortants).
- *
- * Superstep k > 2 (extension du mapping)
- * Chaque sommet v reçoit des messages EXPLORATION portant des mappings
- * partiels de profondeur {@code k−2}. Il tente de s'ajouter au mapping
- * en tant que candidat pour le prochain sommet du motif {@code u_{profondeur}}.
- * La vérification comprend :
- *   Injectivité (v pas déjà utilisé dans le mapping)
- *   Appartenance à {@code M[u_{profondeur}]}
- *   Cohérence structurelle de tous les arcs impliquant u_{profondeur}
- * Si le mapping est complet, il est agrégé dans {@link AggregateurResultats}.
- * Sinon, le mapping étendu est propagé aux voisins de v.
- */
+// Phase 2 — Correspondance distribuée (adaptation d'Ullmann au modèle BSP).
+
 public class CalculCorrespondance
         extends BasicComputation<LongWritable, ValeurSommet, NullWritable, Message> {
 
@@ -66,7 +46,7 @@ public class CalculCorrespondance
                      ", Candidats: " + contenuCandidats.candidats);
         }
 
-        // Charger le motif depuis HDFS (singleton, chargé une seule fois par JVM)
+        // Charger le motif depuis HDFS
         try {
             motif = Motif.charger(getConf());
         } catch (IOException e) {
@@ -81,7 +61,7 @@ public class CalculCorrespondance
 
         long superstep = getSuperstep();
 
-        // ── Superstep 2 : Latence nécessaire pour la propagation des agrégateurs ──
+        // Superstep 2 : Latence nécessaire pour la propagation des agrégateurs
         if (superstep == 2) {
             return;
         }
@@ -97,7 +77,7 @@ public class CalculCorrespondance
         sommet.getEdges().forEach(e -> voisinsSortantsSet.add(e.getTargetVertexId().get()));
 
         if (superstep == 3) {
-            // ── Superstep 3 : Initialisation (Candidats de la racine) ─────────────
+            // Superstep 3 : Initialisation (Candidats de la racine)
             long racine = contenuCandidats.racine;
             List<Long> cands = contenuCandidats.candidats.getOrDefault(
                                     racine, Collections.emptyList());
@@ -108,11 +88,9 @@ public class CalculCorrespondance
 
                 List<Long> ordre = contenuCandidats.ordre;
                 if (ordre.size() == 1) {
-                    LOG.info("Sommet " + idSommet + " : Isomorphisme complet trouvé (S3).");
                     aggregateMapping(mappingInitial);
                     aggregate(AggregateurActivite.NOM, new LongWritable(1L));
                 } else {
-                    LOG.info("Sommet " + idSommet + " : Racine trouvée, démarrage exploration.");
                     propaguerMapping(sommet, mappingInitial, voisinsSortantsSet, val);
                     aggregate(AggregateurActivite.NOM, new LongWritable(1L));
                 }
@@ -120,7 +98,7 @@ public class CalculCorrespondance
             // sommet.voteToHalt(); // Garde le sommet actif pour le suivi par le Master
 
         } else {
-            // ── Superstep k > 3 : Extension des mappings reçus ────────────────────
+            // Superstep k > 3 : Extension des mappings reçus
             for (Message msg : messages) {
                 if (msg.getMappingEncode() == null || msg.getMappingEncode().isEmpty()) continue;
 
@@ -147,9 +125,7 @@ public class CalculCorrespondance
                             if (mappingEtendu.size() == ordre.size()) {
                                 aggregateMapping(mappingEtendu);
                                 aggregate(AggregateurActivite.NOM, new LongWritable(1L));
-                                LOG.info("Sommet " + idSommet + " : Isomorphisme trouvé ! Mapping: " + mappingEtendu);
                             } else {
-                                LOG.info("Sommet " + idSommet + " : Mapping étendu (profondeur " + mappingEtendu.size() + ")");
                                 propaguerMapping(sommet, mappingEtendu, voisinsSortantsSet, val);
                                 aggregate(AggregateurActivite.NOM, new LongWritable(1L));
                             }
@@ -161,17 +137,8 @@ public class CalculCorrespondance
         }
     }
 
-    // ── Méthodes auxiliaires ──────────────────────────────────────────────────
+    // Méthodes auxiliaires
 
-    /**
-     * Propage le mapping partiel à tous les voisins du sommet courant
-     * (entrants + sortants).
-     *
-     * <p>Important : cette stratégie est correcte uniquement si l'ordre
-     * d'exploration fourni par le master est linéairement explorable, c'est-à-dire
-     * si chaque nouveau sommet du motif est adjacent au sommet du motif mappé à
-     * l'étape précédente. Cette contrainte est validée côté master.
-     */
     private void propaguerMapping(
             Vertex<LongWritable, ValeurSommet, NullWritable> sommet,
             Map<Long, Long> mapping,
@@ -197,24 +164,24 @@ public class CalculCorrespondance
                   AggregateurResultats.encoderMapping(mapping));
     }
 
-    /** Encode un mapping Map<Long,Long> → "u0:v0,u1:v1,..." */
+    /** Encode un mapping Map<Long,Long> → "u0 -> v0,u1 -> v1,..." */
     private static String encoderMapping(Map<Long, Long> mapping) {
         StringBuilder sb = new StringBuilder();
         boolean premier = true;
         for (Map.Entry<Long, Long> e : mapping.entrySet()) {
             if (!premier) sb.append(",");
-            sb.append(e.getKey()).append(":").append(e.getValue());
+            sb.append(e.getKey()).append(" -> ").append(e.getValue());
             premier = false;
         }
         return sb.toString();
     }
 
-    /** Décode "u0:v0,u1:v1,..." → Map<Long,Long> */
+    /** Décode "u0 -> v0,u1 -> v1,..." → Map<Long,Long> */
     private static Map<Long, Long> decoderMapping(String encode) {
         Map<Long, Long> mapping = new LinkedHashMap<>();
         if (encode == null || encode.isEmpty()) return mapping;
         for (String paire : encode.split(",")) {
-            String[] kv = paire.split(":");
+            String[] kv = paire.split(" -> ");
             if (kv.length == 2) {
                 mapping.put(Long.parseLong(kv[0].trim()),
                             Long.parseLong(kv[1].trim()));

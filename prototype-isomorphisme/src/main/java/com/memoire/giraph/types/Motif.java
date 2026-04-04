@@ -10,16 +10,8 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.*;
 
-/**
- * Représentation du graphe de motif (pattern graph).
- *
- * <p>Le motif est un graphe orienté chargé depuis un fichier texte HDFS.
- * Format : une ligne par sommet, {@code "id voisin1 voisin2 ..."}.
- * Un sommet sans voisins sortants peut apparaître seul : {@code "id"}.
- *
- * <p>Cette classe est chargée une fois par worker via
- * {@link #charger(Configuration)} et mise en cache (singleton par JVM).
- */
+// Représentation du graphe de motif (pattern graph).
+
 public class Motif {
 
     private static final Logger LOG = Logger.getLogger(Motif.class);
@@ -27,28 +19,21 @@ public class Motif {
     /** Clé de configuration pour le chemin HDFS du fichier motif. */
     public static final String CLE_CHEMIN_MOTIF = "motif.chemin";
 
-    // ── Singleton par JVM (chaque worker charge une seule fois) ──────────────
-
     private static volatile Motif instance = null;
 
-    // ── Structure du motif ────────────────────────────────────────────────────
+    // Structure du motif
 
-    /** Adjacence sortante : sommetMotif → liste de successeurs. */
     private final Map<Long, Set<Long>> voisinsSortants;
 
-    /** Adjacence entrante : sommetMotif → liste de prédécesseurs. */
     private final Map<Long, Set<Long>> voisinsEntrants;
 
-    /** Degrés de chaque sommet du motif. */
     private final Map<Long, PaireDegres> degres;
 
-    /** Tous les identifiants des sommets du motif. */
     private final List<Long> sommets;
 
-    /** Ordre d'exploration DFS depuis la racine (calculé au chargement). */
     private List<Long> ordreExploration;
 
-    // ── Constructeur ──────────────────────────────────────────────────────────
+    // Constructeur
 
     private Motif() {
         this.voisinsSortants  = new LinkedHashMap<>();
@@ -58,17 +43,8 @@ public class Motif {
         this.ordreExploration = new ArrayList<>();
     }
 
-    // ── Chargement depuis HDFS ────────────────────────────────────────────────
+    // Chargement depuis HDFS
 
-    /**
-     * Charge le motif depuis le fichier HDFS désigné par
-     * {@link #CLE_CHEMIN_MOTIF} dans la configuration.
-     * La méthode est thread-safe et ne charge le fichier qu'une fois.
-     *
-     * @param conf configuration Hadoop/Giraph
-     * @return instance unique du motif
-     * @throws IOException si le fichier ne peut pas être lu
-     */
     public static Motif charger(Configuration conf) throws IOException {
         if (instance == null) {
             synchronized (Motif.class) {
@@ -78,7 +54,6 @@ public class Motif {
                         throw new IOException(
                             "Paramètre manquant : " + CLE_CHEMIN_MOTIF);
                     }
-                    LOG.info("Chargement du motif depuis : " + chemin);
                     instance = lireDepuisHDFS(conf, chemin);
                     LOG.info("Motif chargé : " + instance.sommets.size()
                              + " sommets, " + instance.compterArcs() + " arcs.");
@@ -88,7 +63,6 @@ public class Motif {
         return instance;
     }
 
-    /** Réinitialise le singleton (utile pour les tests unitaires). */
     public static void reinitialiser() {
         instance = null;
     }
@@ -106,24 +80,24 @@ public class Motif {
             while ((ligne = lecteur.readLine()) != null) {
                 ligne = ligne.replace("\uFEFF", "").trim();
                 if (ligne.isEmpty() || ligne.startsWith("#")) {
-                    continue; // ignorer commentaires et lignes vides
+                    continue; 
                 }
                 String[] tokens = ligne.split("\\s+");
                 long idSommet = Long.parseLong(tokens[0]);
 
-                // Enregistrer le sommet s'il n'existe pas encore
+                // Enregistrement du sommet s'il n'existe pas encore
                 if (!motif.voisinsSortants.containsKey(idSommet)) {
                     motif.voisinsSortants.put(idSommet, new LinkedHashSet<>());
                     motif.voisinsEntrants.put(idSommet, new LinkedHashSet<>());
                     motif.sommets.add(idSommet);
                 }
 
-                // Enregistrer les arcs sortants
+                // Enregistrement des arcs sortants
                 for (int i = 1; i < tokens.length; i++) {
                     long idVoisin = Long.parseLong(tokens[i]);
                     motif.voisinsSortants.get(idSommet).add(idVoisin);
 
-                    // Créer le voisin s'il n'existe pas encore
+                    // Création du voisin s'il n'existe pas encore
                     if (!motif.voisinsEntrants.containsKey(idVoisin)) {
                         motif.voisinsSortants.put(idVoisin, new LinkedHashSet<>());
                         motif.voisinsEntrants.put(idVoisin, new LinkedHashSet<>());
@@ -134,14 +108,14 @@ public class Motif {
             }
         }
 
-        // Calculer les degrés
+        // Calcul des degrés
         for (long s : motif.sommets) {
             int dSortant = motif.voisinsSortants.get(s).size();
             int dEntrant = motif.voisinsEntrants.get(s).size();
             motif.degres.put(s, new PaireDegres(dEntrant, dSortant));
         }
 
-        // Calculer l'ordre d'exploration par DFS depuis le premier sommet
+        // Calcul de l'ordre d'exploration par DFS depuis le premier sommet
         if (!motif.sommets.isEmpty()) {
             motif.ordreExploration = motif.calculerOrdreDFS(motif.sommets.get(0));
         }
@@ -149,22 +123,12 @@ public class Motif {
         return motif;
     }
 
-    // ── Algorithme DFS pour l'ordre d'exploration ─────────────────────────────
-
-    /**
-     * Calcule un ordre d'exploration DFS du motif depuis un sommet racine.
-     *
-     * <p>Attention : un ordre DFS simple ne garantit pas, pour un motif général,
-     * que chaque sommet u_{k+1} soit adjacent au sommet précédent u_k dans la
-     * liste. Cette propriété est donc vérifiée séparément par
-     * {@link #ordreEstLineairementExplorable(List)} avant de lancer la phase de
-     * correspondance du prototype.
-     */
+    // Algorithme DFS pour l'ordre d'exploration
     public List<Long> calculerOrdreDFS(long racine) {
         List<Long> ordre = new ArrayList<>();
         Set<Long>  visite = new LinkedHashSet<>();
         dfsParcours(racine, visite, ordre);
-        // Ajouter les sommets non atteints (composantes non connexes)
+        // Ajout des sommets non atteints (composantes non connexes)
         for (long s : sommets) {
             if (!visite.contains(s)) {
                 dfsParcours(s, visite, ordre);
@@ -190,19 +154,7 @@ public class Motif {
         }
     }
 
-    // ── Vérification structurelle ─────────────────────────────────────────────
-
-    /**
-     * Vérifie si le mapping partiel étendu avec (idMotif → idDonnees) est
-     * structurellement cohérent avec le motif pour toutes les arêtes impliquant
-     * {@code idMotif} et les sommets déjà mappés.
-     *
-     * @param mappingActuel mapping partiel existant (motif → données)
-     * @param idMotif       identifiant du sommet motif à vérifier
-     * @param idDonnees     identifiant du sommet données candidat
-     * @param voisinsSortantsDonnees  ensemble des voisins sortants du candidat
-     * @param voisinsEntrantsDonnees  liste des voisins entrants du candidat
-     */
+    // Vérification structurelle
     public boolean verifierCoherence(
             Map<Long, Long> mappingActuel,
             long idMotif,
@@ -242,8 +194,7 @@ public class Motif {
         return true;
     }
 
-    // ── Accesseurs ────────────────────────────────────────────────────────────
-
+    // Accesseurs
     public List<Long> getSommets()                 { return Collections.unmodifiableList(sommets); }
     public int        getNombreSommets()           { return sommets.size(); }
     public List<Long> getOrdreExploration()        { return Collections.unmodifiableList(ordreExploration); }
@@ -261,11 +212,6 @@ public class Motif {
         return aArc(a, b) || aArc(b, a);
     }
 
-    /**
-     * Vérifie que l'ordre d'exploration est compatible avec la stratégie actuelle
-     * du prototype : chaque nouveau sommet doit pouvoir être atteint à partir du
-     * sommet mappé à l'étape précédente.
-     */
     public boolean ordreEstLineairementExplorable(List<Long> ordre) {
         if (ordre == null || ordre.size() <= 1) {
             return true;

@@ -8,7 +8,6 @@ public class AggregateurDegresSommets extends BasicAggregator<Text> {
 
     public static final String NOM = "agregateur.degres.sommets";
 
-    /** Séparateur entre les entrées de sommets différents. */
     public static final String SEP_SOMMET = "|";
 
     /**
@@ -17,7 +16,6 @@ public class AggregateurDegresSommets extends BasicAggregator<Text> {
      * @param id          identifiant du sommet
      * @param degreEntrant  degré entrant du sommet
      * @param degreSortant  degré sortant du sommet
-     * @return chaîne encodée "id:degreEntrant:degreSortant"
      */
     public static Text encoder(long id, int degreEntrant, int degreSortant) {
         return new Text(id + ":" + degreEntrant + ":" + degreSortant);
